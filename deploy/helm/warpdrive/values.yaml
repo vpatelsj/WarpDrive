@@ -1,0 +1,60 @@
+agent:
+  image:
+    repository: warpdrive/warpdrive-mount
+    tag: v1.0.0
+  mountPoint: /data
+  cachePath: /nvme/warpdrive-cache
+  nodeSelector:
+    nvidia.com/gpu: "true"
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+
+controlPlane:
+  enabled: true
+  image:
+    repository: warpdrive/warpdrive-control
+    tag: v1.0.0
+  replicas: 1
+  database:
+    host: postgres.internal
+    port: 5432
+    name: warpdrive
+    user: warpdrive
+    passwordSecret: ""
+
+config:
+  cache:
+    maxSize: "2TB"
+    blockSize: "4MB"
+    readaheadBlocks: 4
+    maxParallelFetch: 16
+  backends: []
+    # Override in your values file:
+    # - name: training-data
+    #   type: azureblob
+    #   mount_path: /training
+    #   config:
+    #     account: myaccount
+    #     container: data
+    #   auth:
+    #     method: managed_identity
+
+metrics:
+  port: 9090
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+pdb:
+  enabled: true
+  minAvailable: 1

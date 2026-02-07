@@ -1,0 +1,31 @@
+# Binaries
+bin/
+/warpdrive-ctl
+/warpdrive-mount
+/warpdrive-bench
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+coverage.out
+coverage.html
+
+# Go
+vendor/
+
+# Cache / runtime
+/tmp/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

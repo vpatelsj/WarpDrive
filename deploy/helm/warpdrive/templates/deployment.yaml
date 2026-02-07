@@ -1,0 +1,59 @@
+{{- if .Values.controlPlane.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "warpdrive.fullname" . }}-control
+  labels:
+    {{- include "warpdrive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: {{ .Values.controlPlane.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: warpdrive-control
+      {{- include "warpdrive.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: warpdrive-control
+        {{- include "warpdrive.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: control
+          image: "{{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag }}"
+          args:
+            - "serve"
+            - "--config=/etc/warpdrive/config.yaml"
+          ports:
+            - name: grpc
+              containerPort: 50051
+            - name: http
+              containerPort: 8080
+          env:
+            {{- if .Values.controlPlane.database.passwordSecret }}
+            - name: WARPDRIVE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.controlPlane.database.passwordSecret | default (printf "%s-secrets" (include "warpdrive.fullname" .)) }}
+                  key: db-password
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/warpdrive
+          livenessProbe:
+            httpGet:
+              path: /api/v1/backends
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/v1/backends
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "warpdrive.fullname" . }}-config
+{{- end }}

@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "warpdrive.fullname" . }}-config
+  labels:
+    {{- include "warpdrive.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    mount_point: {{ .Values.agent.mountPoint | default "/data" }}
+    allow_other: true
+
+    cache:
+      path: {{ .Values.agent.cachePath | default "/nvme/warpdrive-cache" }}
+      max_size: {{ .Values.config.cache.maxSize | default "2TB" | quote }}
+      block_size: {{ .Values.config.cache.blockSize | default "4MB" | quote }}
+      readahead_blocks: {{ .Values.config.cache.readaheadBlocks | default 4 }}
+      max_parallel_fetch: {{ .Values.config.cache.maxParallelFetch | default 16 }}
+
+    telemetry:
+      enabled: true
+      sink: stdout
+      sample_metadata_ops: 0.1
+
+    {{- if .Values.controlPlane.enabled }}
+    control_plane:
+      rest_addr: ":8080"
+      storage_crawl_interval: 24h
+    {{- end }}
+
+    backends:
+    {{- range .Values.config.backends }}
+      - name: {{ .name }}
+        type: {{ .type }}
+        mount_path: {{ .mount_path | default (printf "/%s" .name) }}
+        config:
+          {{- toYaml .config | nindent 10 }}
+        {{- if .auth }}
+        auth:
+          {{- toYaml .auth | nindent 10 }}
+        {{- end }}
+    {{- end }}

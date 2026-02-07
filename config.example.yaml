@@ -1,0 +1,36 @@
+# WarpDrive — sample configuration (M1–M4)
+# Copy to /etc/warpdrive/config.yaml or pass via --config flag
+
+mount_point: /data
+
+cache:
+  path: /nvme/warpdrive-cache
+  max_size: 50GB
+  block_size: 4MB
+
+backends:
+  - name: training-data
+    type: local
+    mount_path: /training
+    config:
+      root: /tmp/warpdrive-source
+
+# Metrics / health endpoint
+metrics:
+  enabled: true          # set to false to disable /metrics and /healthz
+  addr: ":9090"          # listen address for Prometheus metrics
+
+# M4: Telemetry configuration
+telemetry:
+  enabled: true
+  sink: "file"                    # "stdout", "file", "http", "nop"
+  file_path: /var/log/warpdrive/telemetry.jsonl
+  control_plane_addr: "http://localhost:8090"  # For "http" sink
+  sample_metadata_ops: 0.1       # Sample 10% of stat/list ops
+  batch_size: 100
+  flush_interval: 5s
+
+# M4: Control plane configuration
+control_plane:
+  rest_addr: ":8090"
+  storage_crawl_interval: 24h

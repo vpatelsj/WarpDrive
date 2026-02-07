@@ -1,0 +1,13 @@
+mount_point: /tmp/warpdrive-mount
+
+cache:
+  path: /tmp/warpdrive-cache
+  max_size: 1GB
+  block_size: 4MB
+
+backends:
+  - name: local-data
+    type: local
+    mount_path: /training
+    config:
+      root: /tmp/warpdrive-source

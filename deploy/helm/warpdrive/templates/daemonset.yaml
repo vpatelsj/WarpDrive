@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "warpdrive.fullname" . }}-agent
+  labels:
+    {{- include "warpdrive.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  selector:
+    matchLabels:
+      app: warpdrive-agent
+      {{- include "warpdrive.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: warpdrive-agent
+        {{- include "warpdrive.selectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.metrics.port }}"
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.agent.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.agent.tolerations | nindent 8 }}
+      serviceAccountName: {{ include "warpdrive.fullname" . }}-agent
+      hostPID: false
+      containers:
+        - name: warpdrive-agent
+          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+          args:
+            - "--config=/etc/warpdrive/config.yaml"
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/warpdrive
+            - name: fuse-mount
+              mountPath: {{ .Values.agent.mountPoint | default "/data" }}
+              mountPropagation: Bidirectional
+            - name: nvme-cache
+              mountPath: {{ .Values.agent.cachePath | default "/nvme/warpdrive-cache" }}
+            - name: fuse-device
+              mountPath: /dev/fuse
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.metrics.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            exec:
+              command:
+                - mountpoint
+                - -q
+                - {{ .Values.agent.mountPoint | default "/data" }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "warpdrive.fullname" . }}-config
+        - name: fuse-mount
+          hostPath:
+            path: {{ .Values.agent.mountPoint | default "/data" }}
+            type: DirectoryOrCreate
+        - name: nvme-cache
+          hostPath:
+            path: {{ .Values.agent.cachePath | default "/nvme/warpdrive-cache" }}
+            type: DirectoryOrCreate
+        - name: fuse-device
+          hostPath:
+            path: /dev/fuse

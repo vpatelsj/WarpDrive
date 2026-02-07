@@ -1,0 +1,63 @@
+---
+- name: Install WarpDrive on Slurm compute nodes
+  hosts: compute_nodes
+  become: yes
+  tasks:
+    - name: Copy warpdrive binaries
+      copy:
+        src: "{{ item }}"
+        dest: /usr/local/bin/
+        mode: '0755'
+      loop:
+        - binaries/warpdrive-mount
+        - binaries/warpdrive-ctl
+
+    - name: Create config directory
+      file:
+        path: /etc/warpdrive
+        state: directory
+        mode: '0755'
+
+    - name: Deploy config
+      template:
+        src: config.yaml.j2
+        dest: /etc/warpdrive/config.yaml
+        mode: '0644'
+
+    - name: Create cache directory
+      file:
+        path: /nvme/warpdrive-cache
+        state: directory
+        mode: '0755'
+
+    - name: Install systemd service
+      copy:
+        src: ../systemd/warpdrive-agent.service
+        dest: /etc/systemd/system/warpdrive-agent.service
+      notify: restart warpdrive
+
+    - name: Install Slurm prolog
+      copy:
+        src: warpdrive-prolog.sh
+        dest: /etc/slurm/prolog.d/warpdrive-prolog.sh
+        mode: '0755'
+
+    - name: Install Slurm epilog
+      copy:
+        src: warpdrive-epilog.sh
+        dest: /etc/slurm/epilog.d/warpdrive-epilog.sh
+        mode: '0755'
+
+    - name: Enable and start warpdrive agent
+      systemd:
+        name: warpdrive-agent
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+  handlers:
+    - name: restart warpdrive
+      systemd:
+        name: warpdrive-agent
+        state: restarted
+        daemon_reload: yes

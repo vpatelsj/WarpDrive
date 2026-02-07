@@ -1,0 +1,15 @@
+apiVersion: v2
+name: warpdrive
+description: WarpDrive cross-cloud data fabric for GPU clusters
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - data-fabric
+  - gpu
+  - fuse
+  - cache
+  - storage
+home: https://github.com/warpdrive/warpdrive
+maintainers:
+  - name: WarpDrive Team

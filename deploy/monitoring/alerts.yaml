@@ -1,0 +1,40 @@
+groups:
+  - name: warpdrive
+    rules:
+      - alert: WarpDriveCacheHitRateLow
+        expr: |
+          rate(warpdrive_cache_hit_total[10m]) /
+          (rate(warpdrive_cache_hit_total[10m]) + rate(warpdrive_cache_miss_total[10m])) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WarpDrive cache hit rate below 50% on {{ $labels.instance }}"
+          description: "Cache efficiency is low, consider warming or increasing cache size."
+
+      - alert: WarpDriveBackendErrorRate
+        expr: rate(warpdrive_backend_errors_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backend {{ $labels.backend }} error rate >1%"
+          description: "Backend errors are elevated, check connectivity and credentials."
+
+      - alert: WarpDriveCacheFull
+        expr: warpdrive_cache_utilization_ratio > 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WarpDrive cache >95% full on {{ $labels.instance }}"
+          description: "Cache is nearly full. Eviction is active but may not keep up."
+
+      - alert: WarpDriveMountDown
+        expr: up{job="warpdrive-agent"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "WarpDrive agent down on {{ $labels.instance }}"
+          description: "WarpDrive agent is not responding. FUSE mount may be unavailable."

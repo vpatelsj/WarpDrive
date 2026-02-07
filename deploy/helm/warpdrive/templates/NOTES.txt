@@ -1,0 +1,17 @@
+WarpDrive has been installed!
+
+1. Verify agent pods are running:
+   kubectl -n {{ .Release.Namespace }} get pods -l app=warpdrive-agent
+
+2. Check the mount is accessible:
+   kubectl -n {{ .Release.Namespace }} exec -it ds/{{ include "warpdrive.fullname" . }}-agent -- ls {{ .Values.agent.mountPoint | default "/data" }}/
+
+{{- if .Values.controlPlane.enabled }}
+3. Access the control plane:
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "warpdrive.fullname" . }}-control 8080:8080
+   curl http://localhost:8080/api/v1/backends
+{{- end }}
+
+4. View metrics:
+   kubectl -n {{ .Release.Namespace }} port-forward ds/{{ include "warpdrive.fullname" . }}-agent {{ .Values.metrics.port }}:{{ .Values.metrics.port }}
+   curl http://localhost:{{ .Values.metrics.port }}/metrics

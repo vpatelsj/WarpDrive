@@ -1,0 +1,99 @@
+# WarpDrive Cache Warming — Kubernetes Init Container
+#
+# Use this init container to pre-populate the WarpDrive NVMe cache before
+# the training job starts. This ensures the first epoch reads are served
+# from fast local storage rather than hitting the remote backend.
+#
+# The init container shares the same cache volume as the main container,
+# so warmed blocks are immediately available to the training process.
+#
+# Resume support:
+#   If the init container is restarted (e.g., node preemption), it will
+#   automatically skip files that were already cached in the previous run.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: training-with-warm-cache
+  labels:
+    app: ml-training
+spec:
+  initContainers:
+    - name: warpdrive-warm
+      image: ghcr.io/warpdrive/warpdrive-ctl:latest
+      command:
+        - warpdrive-ctl
+        - warm
+        - --config
+        - /etc/warpdrive/config.yaml
+        - --backend
+        - training-data
+        - --prefix
+        - datasets/imagenet
+        - --recursive
+        - --max-size
+        - "500GB"
+        - --workers
+        - "32"
+      volumeMounts:
+        - name: warpdrive-config
+          mountPath: /etc/warpdrive
+          readOnly: true
+        - name: warpdrive-cache
+          mountPath: /cache
+      resources:
+        requests:
+          cpu: "2"
+          memory: "4Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+  containers:
+    - name: training
+      image: training-image:latest
+      command: ["python", "-u", "train.py"]
+      volumeMounts:
+        - name: warpdrive-mount
+          mountPath: /data
+          readOnly: true
+        - name: warpdrive-cache
+          mountPath: /cache
+  volumes:
+    - name: warpdrive-config
+      configMap:
+        name: warpdrive-config
+    - name: warpdrive-cache
+      hostPath:
+        path: /mnt/nvme/warpdrive-cache
+        type: DirectoryOrCreate
+    - name: warpdrive-mount
+      hostPath:
+        path: /mnt/warpdrive
+        type: DirectoryOrCreate
+
+---
+# ConfigMap for WarpDrive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warpdrive-config
+data:
+  config.yaml: |
+    mount_point: /mnt/warpdrive
+
+    cache:
+      path: /cache
+      max_size: 1TB
+      block_size: 4MB
+      readahead_blocks: 4
+      max_parallel_fetch: 16
+
+    backends:
+      - name: training-data
+        type: s3
+        mount_path: /data
+        config:
+          bucket: ml-training-data
+          region: us-east-1
+        auth:
+          method: oidc_federation
+          role_arn: arn:aws:iam::123456789:role/warpdrive-s3-reader

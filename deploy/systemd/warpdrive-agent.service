@@ -1,0 +1,20 @@
+[Unit]
+Description=WarpDrive Data Fabric Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/warpdrive-mount --config /etc/warpdrive/config.yaml
+ExecStop=/bin/fusermount -u /data
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+Environment=GOMAXPROCS=8
+
+# Security
+CapabilityBoundingSet=CAP_SYS_ADMIN
+AmbientCapabilities=CAP_SYS_ADMIN
+
+[Install]
+WantedBy=multi-user.target
